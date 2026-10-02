@@ -1,28 +1,28 @@
-# Stage 1: Compile and Build angular codebase
+# Stage 1: Build the Angular app
 
-# Use official node image as the base image
-FROM node:latest as build
+# Current Node LTS
+FROM node:24-alpine AS build
 
-# Set the working directory
 WORKDIR /usr/local/app
 
-# Add the source code to app
-COPY ./ /usr/local/app/
+# Install dependencies first, so Docker can cache this layer
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# Install all the dependencies
-RUN npm install
-
-# Generate the build of the application
+# Build the app. The output goes to dist/angular-docker-nginx/browser
+COPY . .
 RUN npm run build
 
 
-# Stage 2: Serve app with nginx server
+# Stage 2: Serve the app with NGINX
 
-# Use official nginx image as the base image
-FROM nginx:latest
+# Current stable NGINX
+FROM nginx:1.30-alpine
 
-# Copy the build output to replace the default nginx contents.
-COPY --from=build /usr/local/app/dist/angular-docker-nginx /usr/share/nginx/html
+# Serve the app as a single page app
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port 80
+# Replace the default NGINX content with the build output
+COPY --from=build /usr/local/app/dist/angular-docker-nginx/browser /usr/share/nginx/html
+
 EXPOSE 80
